@@ -1,0 +1,18 @@
+[package]
+name = "cozy-cli"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = { version = "1.20.1", features = ["full"] }
+async-stream = "0.3.3"
+futures-util = "0.3.24"
+futures-core = "0.3.24"
+cozy-chess = "0.3.0"
+clap = { version = "3.2.16", features = ["derive"] }
+serde = { version = "1.0.140", features = ["derive"] }
+serde_json = "1.0.82"
+
+cozy-matches = { path = "../cozy-matches" }
