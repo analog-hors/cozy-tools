@@ -3,7 +3,6 @@ use std::path::Path;
 use cozy_uci::UciFormatOptions;
 use cozy_uci::remark::{UciRemark, UciIdInfo};
 use cozy_uci::command::UciCommand;
-use tokio_stream::Stream;
 
 use crate::game::ChessGame;
 
@@ -15,7 +14,7 @@ mod analysis;
 use uci_convert::*;
 use error::{EngineError, EngineAnalysisError};
 use raw_engine::RawEngine;
-use analysis::{AnalysisLimit, EngineAnalysisEvent};
+use analysis::{AnalysisLimit, EngineAnalysis, EngineAnalysisEvent};
 
 #[derive(Debug)]
 pub struct Engine {
@@ -68,11 +67,11 @@ impl Engine {
         UciFormatOptions::default() //TODO
     }
 
-    pub(super) async fn send(&mut self, cmd: &UciCommand) -> Result<(), EngineError> {
+    async fn send(&mut self, cmd: &UciCommand) -> Result<(), EngineError> {
         self.engine.send(cmd, &self.uci_format_opts()).await
     }
 
-    pub(super) async fn recv(&mut self) -> Result<Option<UciRemark>, EngineError> {
+    async fn recv(&mut self) -> Result<Option<UciRemark>, EngineError> {
         self.engine.recv(&self.uci_format_opts()).await
     }
 
@@ -80,32 +79,28 @@ impl Engine {
         if game.needs_chess960() { //TODO
             Err(EngineAnalysisError::IncompatibleWith960)?;
         }
+        let board = game.board().clone();
         let position_cmd = game_to_position_message(game, false); //TODO
         let go_cmd = analysis_limit_to_go_message(limit);
-        let stream = Box::new(async_stream::try_stream! {
+        let stream = Box::pin(async_stream::try_stream! {
             self.send(&position_cmd).await?;
             self.send(&go_cmd).await?;
             loop {
-                match self.recv().await? {
-                    Some(UciRemark::Info(info)) => {
-                        //TODO
+                match self.recv().await?.ok_or(EngineError::UnexpectedTermination)? {
+                    UciRemark::Info(info) => {
                         yield EngineAnalysisEvent::Info(info);
                     }
-                    Some(UciRemark::BestMove { mv, .. }) => {
-                        //TODO
+                    UciRemark::BestMove { mv, .. } => {
+                        let mv = canonicalize_move(&board, mv, false);
                         yield EngineAnalysisEvent::BestMove(mv);
                         break;
                     }
-                    // TODO handle better
-                    Some(rmk) => yield EngineAnalysisEvent::EngineError(EngineError::UnexpectedRemark(rmk)),
-                    None => Err(EngineError::UnexpectedTermination)?,
+                    rmk => {
+                        yield EngineAnalysisEvent::EngineError(EngineError::UnexpectedRemark(rmk));
+                    }
                 }
             }
         });
         Ok(EngineAnalysis { stream })
     }
-}
-
-pub struct EngineAnalysis<'s> {
-    stream: Box<dyn Stream<Item = Result<EngineAnalysisEvent, EngineError>> + 's>
 }

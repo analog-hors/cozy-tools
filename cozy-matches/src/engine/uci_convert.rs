@@ -3,7 +3,7 @@ use cozy_uci::command::{UciCommand, UciInitPos, UciGoParams};
 
 use crate::game::ChessGame;
 
-use super::analysis::AnalysisLimit;
+use super::analysis::{AnalysisLimit, AnalysisTimeLimit};
 
 pub fn decanonicalize_move(board: &Board, mut mv: Move, chess960: bool) -> Move {
     if !chess960 && board.color_on(mv.from) == board.color_on(mv.to) {
@@ -39,7 +39,7 @@ pub fn game_to_position_message(game: &ChessGame, chess960: bool) -> UciCommand 
     let mut moves = Vec::new();
     for (i, (mv, _)) in game.stack().iter().enumerate() {
         let board = if i > 0 { &game.stack()[i - 1].1 } else { game.init_pos() };
-        moves.push(decanonicalize_move(board, *mv, false));
+        moves.push(decanonicalize_move(board, *mv, chess960));
     }
     UciCommand::Position { init_pos, moves }
 }
@@ -49,6 +49,25 @@ pub fn analysis_limit_to_go_message(limit: AnalysisLimit) -> UciCommand {
     if let Some(search_limit) = &limit.search_limit {
         params.depth = search_limit.depth;
         params.nodes = search_limit.nodes;
+    }
+    if let Some(time_limit) = &limit.time_limit {
+        match time_limit {
+            AnalysisTimeLimit::Infinite => params.infinite = true,
+            &AnalysisTimeLimit::MoveTime(movetime) => params.movetime = Some(movetime),
+            &AnalysisTimeLimit::TimeLeft {
+                white_time,
+                black_time,
+                white_increment,
+                black_increment,
+                moves_to_go
+            } => {
+                params.wtime = Some(white_time);
+                params.btime = Some(black_time);
+                params.winc = Some(white_increment);
+                params.binc = Some(black_increment);
+                params.movestogo = moves_to_go;
+            }
+        }
     }
     UciCommand::Go(params)
 }
