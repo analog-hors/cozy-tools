@@ -1,9 +1,13 @@
 use std::path::Path;
 use std::process::Stdio;
 
+use cozy_uci::command::UciCommand;
 use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
 use tokio::process::{Child, ChildStderr, ChildStdin, ChildStdout, Command};
-use vampirc_uci::UciMessage;
+use cozy_uci::UciFormatOptions;
+use cozy_uci::remark::UciRemark;
+
+use super::error::EngineError;
 
 #[derive(Debug)]
 pub struct RawEngine {
@@ -34,18 +38,18 @@ impl RawEngine {
         })
     }
 
-    pub async fn send(&mut self, message: UciMessage) -> tokio::io::Result<()> {
-        let message = format!("{}\n", message);
-        self.stdin.write_all(message.as_bytes()).await?;
+    pub async fn send(&mut self, cmd: &UciCommand, options: &UciFormatOptions) -> Result<(), EngineError> {
+        self.stdin.write_all(cmd.format(options).as_bytes()).await?;
         Ok(())
     }
 
-    pub async fn recv(&mut self) -> tokio::io::Result<Option<UciMessage>> {
-        let mut message = String::new();
-        if self.stdout.read_line(&mut message).await? == 0 {
+    pub async fn recv(&mut self, options: &UciFormatOptions) -> Result<Option<UciRemark>, EngineError> {
+        let mut rmk = String::new();
+        if self.stdout.read_line(&mut rmk).await? == 0 {
             return Ok(None);
         }
-        let message = vampirc_uci::parse_one(&message);
-        Ok(Some(message))
+        let rmk = UciRemark::parse_from(&rmk, options)
+            .map_err(|e| EngineError::InvalidMessage(rmk, e))?;
+        Ok(Some(rmk))
     }
 }

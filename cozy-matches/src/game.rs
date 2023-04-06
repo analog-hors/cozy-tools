@@ -26,6 +26,17 @@ impl ChessGame {
         self.stack.last().map_or(&self.init_pos, |(_, b)| b)
     }
 
+    pub fn needs_chess960(&self) -> bool {
+        let standard = |color| {
+            let rights = self.init_pos.castle_rights(color);
+            matches!(
+                (rights.long, rights.short),
+                (None | Some(File::A), None | Some(File::H))
+            )
+        };
+        !standard(Color::White) || !standard(Color::Black)
+    }
+
     pub fn status(&self) -> GameStatus {
         let status = self.board().status();
         if status != GameStatus::Ongoing {
