@@ -8,7 +8,7 @@ use cozy_matches::time_control::TimeControl;
 use serde::{Deserialize, Serialize};
 use clap::{Parser, Subcommand};
 
-use cozy_matches::engine::{EngineConfig, Engine, EngineAnalysisEvent};
+use cozy_matches::engine::{Engine, EngineAnalysisEvent};
 
 #[derive(Debug, Serialize, Deserialize)]
 struct CozyCliConfig {
@@ -66,7 +66,7 @@ async fn main() {
                 },
             };
             let game = ChessGame::new(Board::default());
-            let engine_match = EngineMatch::new(config, game, white_engine, black_engine);
+            let engine_match = EngineMatch::new(config, game, white_engine, black_engine).unwrap();
             let events = engine_match.run();
             futures_util::pin_mut!(events);
             while let Some(event) = events.next().await {
@@ -75,7 +75,7 @@ async fn main() {
                     EngineMatchEvent::EngineAnalysisEvent { engine, event } => match event {
                         EngineAnalysisEvent::Info(_) => {},
                         EngineAnalysisEvent::BestMove(mv) => println!("{engine}: {mv}"),
-                        EngineAnalysisEvent::UnexpectedMessage(_) => todo!(),
+                        EngineAnalysisEvent::EngineError(e) => todo!("engine error: {}", e),
                     }
                     EngineMatchEvent::GameOver { winner } => println!("winner: {winner:?}"),
                 }

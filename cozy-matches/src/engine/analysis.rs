@@ -24,10 +24,10 @@ pub enum AnalysisTimeLimit {
     Infinite,
     MoveTime(Duration),
     TimeLeft {
-        white_time: Duration,
-        black_time: Duration,
-        white_increment: Duration,
-        black_increment: Duration,
+        white_time: Option<Duration>,
+        black_time: Option<Duration>,
+        white_increment: Option<Duration>,
+        black_increment: Option<Duration>,
         moves_to_go: Option<u32>
     }
 }

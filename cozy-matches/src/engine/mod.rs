@@ -13,9 +13,9 @@ mod error;
 mod analysis;
 
 use uci_convert::*;
-use error::{EngineError, EngineAnalysisError, SetOptionError};
-use raw_engine::RawEngine;
-use analysis::{AnalysisLimit, EngineAnalysis, EngineAnalysisEvent};
+pub use error::*;
+pub use raw_engine::*;
+pub use analysis::*;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UciOptionField {

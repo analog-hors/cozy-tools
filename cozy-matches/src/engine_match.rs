@@ -1,8 +1,7 @@
 use std::time::{Duration, Instant};
 
-use futures_core::Stream;
 use cozy_chess::*;
-use futures_util::StreamExt;
+use tokio_stream::{StreamExt, Stream};
 use thiserror::Error;
 
 use crate::time_control::TimeControl;
@@ -68,18 +67,28 @@ pub enum EngineMatchEvent {
 }
 
 #[derive(Debug, Error)]
+pub enum EngineMatchInitError {
+    #[error("requires chess960 support")]
+    Requires960
+}
+
+#[derive(Debug, Error)]
 pub enum EngineMatchError {
     #[error("engine error")]
     EngineError(#[from] EngineError)
 }
 
 impl EngineMatch {
-    pub fn new(config: EngineMatchConfig, game: ChessGame, white: Engine, black: Engine) -> Self {
-        Self {
+    pub fn new(config: EngineMatchConfig, game: ChessGame, white: Engine, black: Engine) -> Result<Self, EngineMatchInitError> {
+        if game.needs_chess960() && !(white.chess960_enabled() && black.chess960_enabled()) {
+            Err(EngineMatchInitError::Requires960)?;
+        }
+
+        Ok(Self {
             config,
             game,
             engines: [white, black]
-        }
+        })
     }
 
     pub fn run(mut self) -> impl Stream<Item = Result<EngineMatchEvent, EngineMatchError>> {
@@ -122,8 +131,7 @@ impl EngineMatch {
                 };
 
                 let analyis_start = Instant::now();
-                let analysis = self.engines[stm as usize].analyze(&self.game, limit);
-                futures_util::pin_mut!(analysis);
+                let mut analysis = self.engines[stm as usize].analyze(&self.game, limit).unwrap();
                 let mut best_move = None;
                 while let Some(event) = analysis.next().await {
                     let event = event?;

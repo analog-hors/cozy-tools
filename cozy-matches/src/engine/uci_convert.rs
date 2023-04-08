@@ -61,10 +61,10 @@ pub fn analysis_limit_to_go_message(limit: AnalysisLimit) -> UciCommand {
                 black_increment,
                 moves_to_go
             } => {
-                params.wtime = Some(white_time);
-                params.btime = Some(black_time);
-                params.winc = Some(white_increment);
-                params.binc = Some(black_increment);
+                params.wtime = white_time;
+                params.btime = black_time;
+                params.winc = white_increment;
+                params.binc = black_increment;
                 params.movestogo = moves_to_go;
             }
         }
